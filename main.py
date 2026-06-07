@@ -9,11 +9,15 @@ from langchain_pinecone import PineconeVectorStore
 load_dotenv()
 
 
-# the process is going to look like:
+# the process is going to look like: 1. ingestion 2. retrieval
+# 1. ingestion or data indexing:
 # TextLoader -> for loading the medium text, for loading of different kind of data, we've different loaders.
 # TextSplitter -> Splitting the blog into smaller chunks
 # OpenAIEmbeddings -> Embed the chunks and get vectors
 # Pinecone -> store the embeddings in pinecone vector store
+
+# 2. retrieval:
+
 
 def main():
     print("Hello from rag-gist!")
