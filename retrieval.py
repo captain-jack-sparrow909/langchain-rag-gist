@@ -1,3 +1,4 @@
+from operator import itemgetter
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -8,6 +9,10 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
+from langchain_core.output_parsers import StrOutputParser
+# Many LangChain chat models return structured message objects (such as AIMessage). If you only want the text content, StrOutputParser extracts it.
+from langchain_core.runnables import RunnablePassthrough
+# RunnablePassthrough simply passes its input through unchanged. Useful in RAG where you want to preserve original input while generating additional values.
 
 print("initializing components...")
 embeddings = OpenAIEmbeddings(
@@ -65,6 +70,56 @@ def retrieval_chain_without_lcel(query):
     # step 5: return the response content
     return response.content
 
+def retrieval_chain_with_lcel():
+    """
+    Create a retrieval chain using LCEL
+    return a chain that can be invoked with {"question": ...}
+
+    Advantages over non-LCEL approach:
+    - Declarative and composable - easy to chain operations using pipe operator |
+    - Built-in streaming - chain.stream() works out of the box
+    - Built-in async - chain.ainvoke() and chain.astream() available
+    - Batch processing - chain.batch() for multiple inputs
+    - Type safety - better integration with Langchain's type system
+    - Less code
+    - Reusable
+    - Better debugging and observability
+    """
+
+
+    # retrieval_chain = (
+    #     retriever | format_docs | # these are the 1st and 2nd step of retrieval_chain_without_lcel
+    #     prompt_template | #this chain has combined the 3rd, 4th and 5th step of retrieval_chain_without_lcel
+    #     llm |
+    #     StrOutputParser()
+    # ) 
+
+    # possible issue: but the solution is there:
+    # however the format_docs is just a python function and not Langchain's and you don't have invoke method on it 
+    # but whenever we use python functions in LCEL, langchain will convert them into runnable lambdas.
+    # eg: retriever | format_docs | prompt_template => converted into retriever | RunnableLambda(format_docs) | prompt_template
+
+    # another issue:
+    # the prompt_template need to receive context, and question, the output of -> retriever | format_docs isn't going to do this for us,
+    # we need some way: we need to take the output of those steps and attribute it to the key "context", that's why the step shown below
+    # is needed, and the above is commented
+    retrieval_chain = (
+        RunnablePassthrough.assign(
+            context = itemgetter('question') | retriever | format_docs
+        ) 
+        | prompt_template 
+        | llm
+        | StrOutputParser()
+    )
+
+    # the input 'question' with which the retrieval_chain is invoked it'll let it pass through, but with assign method it'll add additional key 'context'
+    # the value of 'context' is calculated by these steps: itemgetter("question") | retriever | format_docs
+
+    return retrieval_chain
+    
+
+
+
 
 
 
@@ -80,9 +135,17 @@ if __name__ == "__main__":
     # print("\nAnswer of raw invocaiton: ", result_raw.content)
 
     ##########################################
-    # Option 1: invocation with RAG
+    # Option 1: invocation with RAG without using LCEL, main difficulty is that on LangSmith some of the steps won't be traceable
     ##########################################
-    retrieval_result_without_lcel = retrieval_chain_without_lcel(query)
-    print(f"\nRetrieval without LCEL:\n{retrieval_result_without_lcel}")
+    # retrieval_result_without_lcel = retrieval_chain_without_lcel(query)
+    # print(f"\nRetrieval without LCEL:\n{retrieval_result_without_lcel}")
+
+    ##########################################
+    # Option 2: invocation with RAG using LCEL - BETTER APPROACH
+    ##########################################
+    chain_with_lcel = retrieval_chain_with_lcel()
+    result_with_lcel = chain_with_lcel.invoke({"question": query})
+    print("\nAnswer of retrieval chain with LCEL\n")
+    print(result_with_lcel)
 
 
