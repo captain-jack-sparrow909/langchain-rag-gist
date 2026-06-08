@@ -20,7 +20,7 @@ embeddings = OpenAIEmbeddings(
         model="text-embedding-3-small",
         dimensions=512)
 llm = ChatOpenAI(model='gpt-5-nano')
-vector_store = PineconeVectorStore(index_name=os.environ.get('INDEX'), embedding=embeddings)
+vector_store = PineconeVectorStore(index_name=os.environ.get('PINECONE_INDEX_NAME'), embedding=embeddings)
 
 # retriever from pinecone to get relevant chunks:
 retriever = vector_store.as_retriever(search_kwargs={"k": 3})   #return the top 3 most similar documents
