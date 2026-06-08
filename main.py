@@ -42,7 +42,7 @@ def main():
     )
 
     # storing embeddings into Pinecone DB
-    PineconeVectorStore.from_documents(documents=texts, embedding=embeddings, index_name=os.environ.get("INDEX_NAME"))
+    PineconeVectorStore.from_documents(documents=texts, embedding=embeddings, index_name=os.environ.get("PINECONE_INDEX_NAME"))
 
     print("..ingestion finish..")
 
